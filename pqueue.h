@@ -1,4 +1,6 @@
 #include <memory>
+#include <shared_mutex>
+#include <mutex>
 
 // write unit tests
 // template<typename T> should be a template eventually, start with 1 datatype
@@ -8,30 +10,31 @@ class queue_base {
         using size_type = unsigned long int;
     
         std::allocator<int> alloc;
-        std::atomic<int*> elem;
+        std::shared_mutex mutex;
+        int* elem;
         size_type sz;
         size_type space;
-        std::atomic<int*> head;
-        std::atomic<int*> tail;
+        int* head;
+        int* tail;
     
-        queue_base(std::allocator<int> allocator, size_type sz, size_type space): 
+        queue_base(std::allocator<int> allocator, size_type n): 
             alloc{allocator}, 
-            sz{sz}, space{space}
+            sz{n}, space{n}
         {
-            elem.store(alloc.allocate(space));
-            head = elem.load();
-            tail = elem.load();
+            elem = alloc.allocate(space);
+            head = elem;
+            tail = elem;
         }
     
         ~queue_base() {
-            if (elem.load()) {
-                alloc.deallocate(elem.load(), space);
-                elem.store(nullptr);
-                head.store(nullptr);
-                tail.store(nullptr);
-                sz = 0;
-                space = 0;
-            }
+            for (int i = 0; i < sz; ++i)
+                alloc.destroy(elem+i);
+
+            alloc.deallocate(elem, space);
+            elem = nullptr;
+            head = nullptr;
+            sz = 0;
+            space = 0;
         }
     
         queue_base(queue_base&&);
@@ -39,5 +42,23 @@ class queue_base {
         queue_base& operator=(queue_base&&);
     };
 
+
+// eventually want this to be templated instead of ints. Concrete implementation should store bitsreams use conversion methods
 class persistent_queue: private queue_base
-{};
+{
+public:
+    persistent_queue():
+        queue_base{std::allocator<int>(), 0}
+    {}
+
+    void enqueue();
+    void dequeue();
+
+    void enqueueBatch(int n);
+    void dequeueBatch(int n);
+    
+    void reserve(size_type newAlloc);
+    void resize();
+
+    // define iterators
+};
