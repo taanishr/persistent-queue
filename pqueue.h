@@ -46,6 +46,8 @@ class queue_base {
 // eventually want this to be templated instead of ints. Concrete implementation should store bitsreams use conversion methods
 class persistent_queue: private queue_base
 {
+private:
+    void reserveImpl(size_type newAlloc);
 public:
     persistent_queue():
         queue_base{std::allocator<int>(), 0}
@@ -58,7 +60,7 @@ public:
     void dequeueBatch(int n);
     
     void reserve(size_type newAlloc);
-    void resize();
+    void resize(size_type newSize);
 
     // define iterators
 };
