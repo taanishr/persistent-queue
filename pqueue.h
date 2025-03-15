@@ -1,6 +1,7 @@
 #include <memory>
 #include <shared_mutex>
 #include <mutex>
+#include <list>
 
 // write unit tests
 // template<typename T> should be a template eventually, start with 1 datatype
@@ -53,11 +54,13 @@ public:
         queue_base{std::allocator<int>(), 0}
     {}
 
-    void enqueue();
-    void dequeue();
+    void enqueue(int elem);
+    void peek();
+    int dequeue();
 
-    void enqueueBatch(int n);
-    void dequeueBatch(int n);
+    void enqueueBatch(std::list<int>::iterator begin, std::list<int>::iterator end);
+    void peekBatch(size_type count);
+    int* dequeueBatch(size_type count);
     
     void reserve(size_type newAlloc);
     void resize(size_type newSize);

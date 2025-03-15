@@ -22,7 +22,7 @@ void persistent_queue::reserveImpl(size_type newAlloc) {
     startPtr = b.elem;
     this->space = newAlloc;
     this->head = startPtr;
-    this->tail = startPtr + sz;
+    this->tail = startPtr;
 }
 
 void persistent_queue::reserve(size_type newAlloc)
@@ -35,9 +35,36 @@ void persistent_queue::reserve(size_type newAlloc)
 void persistent_queue::resize(size_type newSize)
 {
     std::lock_guard<std::shared_mutex> lockGuard {this->mutex};
-
     reserveImpl(newSize);
     for (int i = 0; i < newSize; ++i) alloc.construct(&elem[i], i);
     for (int i = newSize; i < sz; ++i) alloc.destroy(&elem[i]);
     this->sz = newSize;
+}
+
+void persistent_queue::enqueue(int elem)
+{
+    std::lock_guard<std::shared_mutex> lockGuard {this->mutex};
+
+    // if (sz >= space)
+    //     reserveImpl(space * 2);
+
+        
+    
+
+}
+
+int persistent_queue::dequeue()
+{
+    std::lock_guard<std::shared_mutex> lockGuard {this->mutex};
+}
+
+void persistent_queue::enqueueBatch(std::list<int>::iterator begin, std::list<int>::iterator end)
+{
+    std::lock_guard<std::shared_mutex> lockGuard {this->mutex};
+}
+
+int* persistent_queue::dequeueBatch(size_type count)
+{
+    std::lock_guard<std::shared_mutex> lockGuard {this->mutex};
+    return nullptr;
 }
