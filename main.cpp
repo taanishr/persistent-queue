@@ -2,7 +2,7 @@
 #include "pqueue.h"
 
 int main() {
-    persistent_queue pq {};
+    persistent_queue<int> pq {};
 
     for (int i = 0; i < 100; ++i) {
         pq.enqueue(i);
