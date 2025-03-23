@@ -7,9 +7,12 @@ void persistent_queue::reserveImpl(size_type newAlloc) {
     storage_base b {this->alloc, newAlloc};
 
     for (int i = head; i < head + sz; ++i) 
-        new (b.elem+i) int(this->elem[i % space]);
+        new (b.elem+i-head) int(this->elem[i % space]);
+    b.sz = this->sz;
 
     for (int i = 0; i < sz; ++i) this->alloc.destroy(this->elem+i);
+    this->sz = 0;
+
     std::swap<storage_base>(static_cast<storage_base&>(*this), static_cast<storage_base&>(b));
     this->head = 0;
     this->tail = head+sz;
