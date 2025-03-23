@@ -1,38 +1,34 @@
 // In memory, persistent, (eventually distributed) queue
 #include "pqueue.h"
 
-queue_base::queue_base(queue_base&& qb):
-    alloc{qb.alloc},
-    elem{qb.elem},
-    sz{qb.sz},
-    space{qb.space},
-    head{qb.tail},
-    tail{qb.head}
+storage_base::storage_base(storage_base&& sb):
+    alloc{sb.alloc},
+    elem{sb.elem},
+    sz{sb.sz},
+    space{sb.space}
 {
-    
-    qb.alloc.deallocate(qb.elem, qb.space);
-    qb.sz = 0;
-    qb.space = 0;
-    qb.elem = nullptr;
-    qb.head = nullptr;
-    qb.tail = nullptr;
+    sb.sz = 0;
+    sb.space = 0;
+    sb.elem = nullptr;
 }
 
-queue_base& queue_base::operator=(queue_base&& qb) 
+storage_base& storage_base::operator=(storage_base&& sb) 
 {
-    // move data from qb to *this
-    alloc.deallocate(elem, space);
-    elem = qb.elem;
-    tail = qb.head;
-    tail = qb.tail;
-    sz = qb.sz;
-    space = qb.space;
+    /* move data from qb to *this */
 
-    // destroy qb's elements
-    qb.alloc.deallocate(qb.elem, qb.space);
-    qb.sz = 0;
-    qb.space = 0;
-    qb.elem = nullptr;
-    qb.head = nullptr;
-    qb.tail = nullptr;
+    // delete existing data 
+    for (int i = 0; i < sz; ++i) alloc.destroy(elem+i);
+    alloc.deallocate(elem, space);
+
+    // complete move
+    elem = sb.elem;
+    sz = sb.sz;
+    space = sb.space;
+
+    // reset sb
+    sb.sz = 0;
+    sb.space = 0;
+    sb.elem = nullptr;
+
+    return *this; // forgot to return *this, which is fairly important
 }
