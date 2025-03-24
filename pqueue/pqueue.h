@@ -1,75 +1,7 @@
 #include <memory>
 #include <shared_mutex>
 #include <mutex>
-
-// write unit tests
-// template<typename T> should be a template eventually, start with 1 datatype
-
-template <typename T>
-class storage_base {
-public:
-    using size_type = unsigned long int;
-
-    std::allocator<T> alloc;
-    int* elem;
-    size_type sz;
-    size_type space;
-
-    storage_base(std::allocator<T> allocator, size_type n): 
-        alloc{allocator}, 
-        sz{0}, space{n}
-    {
-        elem = alloc.allocate(space);
-    }
-
-    ~storage_base() {
-        for (int i = 0; i < sz; ++i)
-            alloc.destroy(elem+i);
-
-        alloc.deallocate(elem, space);
-        elem = 0;
-        sz = 0;
-        space = 0;
-    }
-
-    storage_base(storage_base&&);
-
-    storage_base& operator=(storage_base&&);
-};
-
-template <typename T>
-storage_base<T>::storage_base(storage_base<T>&& sb):
-    alloc{sb.alloc},
-    elem{sb.elem},
-    sz{sb.sz},
-    space{sb.space}
-{
-    sb.sz = 0;
-    sb.space = 0;
-    sb.elem = nullptr;
-}
-
-template <typename T>
-storage_base<T>& storage_base<T>::operator=(storage_base<T>&& sb) 
-{
-    /* move data from qb to *this */
-
-    // delete existing data 
-    for (int i = 0; i < sz; ++i) alloc.destroy(elem+i);
-    alloc.deallocate(elem, space);
-
-    // complete move
-    elem = sb.elem;
-    sz = sb.sz;
-    space = sb.space;
-
-    // reset sb
-    sb.sz = 0;
-    sb.space = 0;
-    sb.elem = nullptr;
-
-    return *this; // forgot to return *this, which is fairly important
-}
+#include "storagebase.h"
 
 // eventually want this to be templated instead of ints. Concrete implementation should store bitsreams use conversion methods
 template <typename T>
@@ -79,23 +11,26 @@ public:
     using size_type = typename storage_base<T>::size_type;
 
     persistent_queue():
-        storage_base<T>{std::allocator<T>(), 0}
+        storage_base<T>{0}
     {
         head = 0;
         tail = 0;
     }
 
-    int size();
+    int capacity() const;
+    T* data();
+
+    int size() const;
 
     void enqueue(T i);
-    T dequeue();
-    T peek();
+    std::optional<T> dequeue();
+    std::optional<T> peek() const;
 
     // void enqueueBatch(int n);
     // void dequeueBatch(int n);
     
     void reserve(size_type newAlloc);
-    void resize(size_type newSize);
+    void resize(size_type newSize, T val = T());
 
     // define iterators
 private:
@@ -109,13 +44,13 @@ template <typename T>
 void persistent_queue<T>::reserveImpl(size_type newAlloc) {
     if (newAlloc <= this->space) return;
 
-    storage_base<T> b {this->alloc, newAlloc};
+    storage_base<T> b {newAlloc};
 
     for (int i = head; i < head + this->sz; ++i) 
         new (b.elem+i-head) int(this->elem[i % this->space]);
     b.sz = this->sz;
 
-    for (int i = 0; i < this->sz; ++i) this->alloc.destroy(this->elem+i);
+    for (int i = 0; i < this->sz; ++i) std::destroy_at(this->elem+i);
     this->sz = 0;
 
     std::swap<storage_base<T>>(static_cast<storage_base<T>&>(*this), static_cast<storage_base<T>&>(b));
@@ -132,18 +67,29 @@ void persistent_queue<T>::reserve(size_type newAlloc)
 }
 
 template <typename T>
-int persistent_queue<T>::size() {
+int persistent_queue<T>::size() const {
     return this->sz;
 }
 
 template <typename T>
-void persistent_queue<T>::resize(size_type newSize)
+int persistent_queue<T>::capacity() const {
+    return this->space;
+}
+
+template <typename T>
+T* persistent_queue<T>::data() {
+    return this->elem;
+}
+
+template <typename T>
+void persistent_queue<T>::resize(size_type newSize, T val)
 {
     std::lock_guard<std::shared_mutex> lockGuard {this->mutex};
 
     reserveImpl(newSize);
-    for (int i = 0; i < newSize; ++i) this->alloc.construct(&this->elem[i], i);
-    for (int i = newSize; i < this->sz; ++i) this->alloc.destroy(&this->elem[i]);
+    for (int i = this->sz; i < newSize; ++i) new (&this->elem[i]) T(val);
+
+    for (int i = newSize; i < this->sz; ++i) std::destroy_at(&this->elem[i]);
     this->sz = newSize;
 }
 
@@ -162,10 +108,10 @@ void persistent_queue<T>::enqueue(T i) {
 }
 
 template <typename T>
-T persistent_queue<T>::dequeue() {
+std::optional<T> persistent_queue<T>::dequeue() {
     std::lock_guard<std::shared_mutex> lockGuard {this->mutex};
     if (this->sz == 0)
-        return -1;
+        return std::nullopt;
     int rt = *(this->elem+head);
     std::destroy_at(this->elem+head);
     head = (head+1)%this->space;
@@ -174,9 +120,9 @@ T persistent_queue<T>::dequeue() {
 }
 
 template <typename T>
-T persistent_queue<T>::peek() {
+std::optional<T> persistent_queue<T>::peek() const{
     if (this->sz == 0)
-        return -1;
+        return std::nullopt;
     int rt = *(this->elem+head);
     return rt;
 }
