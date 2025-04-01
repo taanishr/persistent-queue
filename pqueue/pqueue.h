@@ -202,13 +202,13 @@ namespace persistent_queue {
     template <typename Container, typename T>
     class Engine {
         public:
-            Engine(Container memory_buffer, std::ofstream file);
+            Engine(std::ofstream& output_file);
 
             unsigned long buffer_size = 64;
 
             void enqueueBatch();
 
-            void enqueue();
+            void enqueue(T elem); 
 
             T dequeue();
 
@@ -223,22 +223,27 @@ namespace persistent_queue {
             void serialize();
         private:
             Container memory_buffer;
-            std::ofstream file;
+            std::ofstream output_file;
     };
 
     template<typename Container, typename T>
-    Engine<Container, T>::Engine(Container memory_buffer, std::ofstream file) {
-
-    }
+    Engine<Container, T>::Engine(std::ofstream& output_file):
+        memory_buffer{Container()}, 
+        output_file{std::move(output_file)}
+    {}
 
     template <typename Container, typename T>
-    void Engine<Container, T>::enqueue() {
-
+    void Engine<Container, T>::enqueue(T elem) {
+        auto begin = memory_buffer.begin();
+        memory_buffer.insert(begin, elem);
+        flush();
     }
 
     template <typename Container, typename T>
     T Engine<Container, T>::dequeue() {
-
+        auto end = memory_buffer.end();
+        --end;
+        memory_buffer.erase(end);
     }
 
     template <typename Container, typename T>
