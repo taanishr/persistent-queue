@@ -136,20 +136,14 @@ namespace persistent_queue {
         return elem;
     }
 
-
-//    template <typename T, typename Container>
-//    template <typename Batch_Container>
-//    void Engine<T, Container>::enqueueBatch(const Batch_Container& batch) {
-//        for (auto curr = batch.begin(); curr != batch.end(); ++curr) {
-//            auto begin = memory_buffer.begin();
-//            memory_buffer.insert(begin, *curr);
-//        }
-//
-//        flush();
-//    }
-
-
-
+    template <typename T, typename Container>
+    void Engine<T, Container>::flush() {
+        for (auto it = memory_buffer.rbegin(); it != memory_buffer.rend(); ++it) {
+            it >> file;
+            file_markers.push_back(File_Marker{file.tellg()});
+            last_file_marker = file_markers.end()-1;
+        }
+    }
 
     template<typename T, typename Container> 
     typename Engine<T, Container>::size_type Engine<T, Container>::size() {
