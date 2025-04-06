@@ -3,25 +3,47 @@
 #include <thread>
 #include "pqueue/pqueue.h"
 #include <algorithm>
+#include <deque>
 
 int main() {
-    persistent_queue<int> pq {};
+    std::deque<int> dq {};
+    dq.push_front(4);
+    dq.push_front(5);
+    dq.push_front(7);
 
-    std::vector<std::thread> threads {};
+    auto begin = dq.begin();
 
-    for (int i = 0; i < 8; ++i) {
-        threads.emplace_back([&pq, i](){
-            pq.enqueue(i);
-        });
+    std::cout << "Printing iterator from begin to end" << '\n';
+    for (auto i = begin; i != dq.end(); ++i) {
+        std::cout << *i << '\n';
+
     }
 
-    for (auto& thread: threads)
-        thread.join();
+    std::cout << "Printing end iterator - 1" << '\n';
 
-    
-    std::vector<int> actualData(7);
-    std::copy(pq.data(), pq.data()+7, actualData.begin());
-    std::sort(actualData.begin(), actualData.end());
+    auto end = dq.end();
+
+    --end;
+
+    std::cout << *end << '\n';
+
+//    persistent_queue<int> pq {};
+//
+//    std::vector<std::thread> threads {};
+//
+//    for (int i = 0; i < 8; ++i) {
+//        threads.emplace_back([&pq, i](){
+//            pq.enqueue(i);
+//        });
+//    }
+//
+//    for (auto& thread: threads)
+//        thread.join();
+//
+//    
+//    std::vector<int> actualData(7);
+//    std::copy(pq.data(), pq.data()+7, actualData.begin());
+//    std::sort(actualData.begin(), actualData.end());
 
 
     // for (int i = 0; i < 100; ++i) {
