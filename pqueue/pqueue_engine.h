@@ -1,9 +1,7 @@
 #include <fstream>
 #include <optional>
-
-
-
-
+#include <vector>
+#include <iostream>
 
 namespace persistent_queue {    
     struct File_Marker {
@@ -78,6 +76,7 @@ namespace persistent_queue {
     template <typename T, typename Container>
     void Engine<T, Container>::enqueue(const T& elem) {
         auto begin = memory_buffer.begin();
+        std::cout << "Inserting" << elem << '\n';
         memory_buffer.insert(begin, elem);
         sz++;
         flush();
@@ -139,10 +138,13 @@ namespace persistent_queue {
     template <typename T, typename Container>
     void Engine<T, Container>::flush() {
         for (auto it = memory_buffer.rbegin(); it != memory_buffer.rend(); ++it) {
-            it >> file;
+            std::cout << *it << '\n';
+            file << *it << ',';
             file_markers.push_back(File_Marker{file.tellg()});
             last_file_marker = file_markers.end()-1;
         }
+
+        memory_buffer.clear();
     }
 
     template<typename T, typename Container> 

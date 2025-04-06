@@ -4,28 +4,14 @@
 #include "pqueue/pqueue.h"
 #include <algorithm>
 #include <deque>
+#include "pqueue/pqueue_engine.h"
 
 int main() {
-    std::deque<int> dq {};
-    dq.push_front(4);
-    dq.push_front(5);
-    dq.push_front(7);
-
-    auto begin = dq.begin();
-
-    std::cout << "Printing iterator from begin to end" << '\n';
-    for (auto i = begin; i != dq.end(); ++i) {
-        std::cout << *i << '\n';
-
-    }
-
-    std::cout << "Printing end iterator - 1" << '\n';
-
-    auto end = dq.end();
-
-    --end;
-
-    std::cout << *end << '\n';
+    std::fstream file {};
+    file.open("hello.txt", std::ios::in | std::ios::out | std::ios::app);
+    persistent_queue::Engine<int, std::vector<int>> engine {file};
+    engine.enqueue(4);
+    engine.enqueue(5);
 
 //    persistent_queue<int> pq {};
 //

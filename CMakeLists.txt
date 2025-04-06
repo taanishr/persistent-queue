@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Catch2 REQUIRED)
 
-add_executable(pqueue main.cpp)
+add_executable(pqueue main.cpp pqueue/pqueue.cpp pqueue/pqueue_engine.cpp)
 
 target_link_libraries(pqueue PRIVATE Catch2::Catch2)
 

@@ -1,11 +1,11 @@
 #include <catch2/catch_all.hpp>
-#include "pqueue/pqueue.h"
+#include "../pqueue/pqueue.h"
 #include <thread>
 #include <vector>
 #include <algorithm>
 
 TEST_CASE("Enqueue") {
-    persistent_queue<int> pq;
+    persistent_queue::persistent_queue<int> pq;
 
     SECTION("enqueue into empty queue") {
         int expectedData[] = {1};
@@ -166,7 +166,7 @@ TEST_CASE("Enqueue") {
 }
 
 TEST_CASE("Dequeue") {
-    persistent_queue<int> pq;
+    persistent_queue::persistent_queue<int> pq;
 
     SECTION("dequeue on empty queue") {
        auto elem = pq.dequeue();
@@ -262,7 +262,7 @@ TEST_CASE("Dequeue") {
 }
 
 TEST_CASE("Reserve") {
-    persistent_queue<int> pq;
+    persistent_queue::persistent_queue<int> pq;
 
     SECTION("Reserve capacity less than existing capcaity") {
         std::vector<int> expectedData;
@@ -301,7 +301,7 @@ TEST_CASE("Reserve") {
 }
 
 TEST_CASE("Resize") {
-    persistent_queue<int> pq;
+    persistent_queue::persistent_queue<int> pq;
 
     SECTION("Resize bigger than existing size") {
         std::vector<int> expectedData;
