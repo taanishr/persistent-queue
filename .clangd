@@ -1,0 +1,8 @@
+
+CompileFlags:
+  Add: [
+    -isystem/opt/homebrew/Cellar/llvm/19.1.7_1/include/c++/v1,
+    -isystem/opt/homebrew/Cellar/llvm/19.1.7_1/lib/clang/19/include,
+    -isystem/Library/Developer/CommandLineTools/SDKs/MacOSX15.sdk/usr/include,
+    -F/Library/Developer/CommandLineTools/SDKs/MacOSX15.sdk/System/Library/Frameworks
+  ]
