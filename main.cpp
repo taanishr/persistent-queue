@@ -8,10 +8,10 @@
 
 int main() {
     std::fstream file {};
-    file.open("hello.txt", std::ios::in | std::ios::out | std::ios::app);
+    file.open("storagefile.txt", std::ios::in | std::ios::out | std::ios::app);
     persistent_queue::Engine<int, std::vector<int>> engine {file};
-    engine.enqueue(4);
-    engine.enqueue(5);
+    for (int i = 0; i < 100; ++i)
+        engine.enqueue(i);
 
 //    persistent_queue<int> pq {};
 //

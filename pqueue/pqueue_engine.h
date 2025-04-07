@@ -66,20 +66,21 @@ namespace persistent_queue {
 
     template<typename Container, typename T>
     Engine<Container, T>::Engine(std::fstream& file):
-        memory_buffer{Container()}, 
         file{std::move(file)},
         sz{0},
         saved_sz{0},
         last_file_marker(file_markers.end())    
-    {}
+    {
+        //        std::cout << "Size in constructor" << memory_buffer.size() << '\n';
+    }
 
     template <typename T, typename Container>
     void Engine<T, Container>::enqueue(const T& elem) {
         auto begin = memory_buffer.begin();
-        std::cout << "Inserting" << elem << '\n';
         memory_buffer.insert(begin, elem);
         sz++;
-        flush();
+        if (sz == buffer_size)
+            flush();
     }
 
     template <typename T, typename Container>
@@ -137,14 +138,17 @@ namespace persistent_queue {
 
     template <typename T, typename Container>
     void Engine<T, Container>::flush() {
-        for (auto it = memory_buffer.rbegin(); it != memory_buffer.rend(); ++it) {
-            std::cout << *it << '\n';
-            file << *it << ',';
+        std::cout << "Flushing\n";
+        auto it = memory_buffer.rbegin();
+        for (int i = 0; i < buffer_size && it != memory_buffer.rend(); ++it, ++i) {
             file_markers.push_back(File_Marker{file.tellg()});
+            file << *it << ',';
             last_file_marker = file_markers.end()-1;
+//            std::cout << "Last file marker: " << last_file_marker->position << '\n';
         }
 
         memory_buffer.clear();
+        sz = 0;
     }
 
     template<typename T, typename Container> 
