@@ -9,9 +9,15 @@
 int main() {
     std::fstream file {};
     file.open("storagefile.txt", std::ios::in | std::ios::out | std::ios::app);
-    persistent_queue::Engine<int, std::vector<int>> engine {file};
-    for (int i = 0; i < 100; ++i)
+    persistent_queue::Engine<int> engine {file};
+    for (int i = 0; i < 40; ++i)
         engine.enqueue(i);
+    auto elem = engine.dequeue();
+    std::cout << "Dequeued elem (memory buffer): " << *elem << '\n';
+    for (int i = 40; i < 120; ++i)
+        engine.enqueue(i);
+//    elem = engine.dequeue();
+//    std::cout << "Dequeued elem (file): " << *elem << '\n';
 
 //    persistent_queue<int> pq {};
 //
