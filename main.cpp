@@ -10,12 +10,13 @@ int main() {
     std::fstream file {};
     file.open("storagefile.txt", std::ios::in | std::ios::out | std::ios::app);
     persistent_queue::Engine<int> engine {file};
-    for (int i = 0; i < 40; ++i)
+
+    for (int i = 0; i < 129; ++i)
         engine.enqueue(i);
+
     auto elem = engine.dequeue();
-    std::cout << "Dequeued elem (memory buffer): " << *elem << '\n';
-    for (int i = 40; i < 120; ++i)
-        engine.enqueue(i);
+    std::cout << *elem << '\n';
+
 //    elem = engine.dequeue();
 //    std::cout << "Dequeued elem (file): " << *elem << '\n';
 
