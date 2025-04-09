@@ -8,5 +8,4 @@ namespace persistent_queue {
     Chunk::Chunk(unsigned long position):
         position{position}
     {}
-
 }

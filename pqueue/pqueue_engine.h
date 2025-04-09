@@ -4,7 +4,6 @@
 #include <iostream>
 #include <deque>
 #include <nlohmann/json.hpp>
-
 namespace persistent_queue {    
     struct File_Marker {
         unsigned long position;
@@ -16,15 +15,30 @@ namespace persistent_queue {
     struct Chunk {
         unsigned long position;
         std::vector<File_Marker> fms;
-        std::vector<File_Marker>::iterator oldest_item_fm;
-        bool isEmpty();
+        std::vector<File_Marker>::reverse_iterator oldest_item_fm;
         Chunk(unsigned long position);
     };
 
-    template <typename T, typename Container = std::deque<T>>
+    template <typename T>
+    struct Default_Serializer {
+        static void serialize(std::ostream& os, const T& value) {
+            os << value << ',';
+        }
+
+        T deserialize(std::istream& is) {
+            T value;
+            is >> value;
+            return value;
+        }
+    };
+
+    template <
+            typename T, 
+            typename Container = std::deque<T>,
+            typename Serializer = Default_Serializer<T>>
     class Engine {
     public:
-        Engine(std::fstream& file);
+        Engine(std::string filename);
 
         using size_type = unsigned long;
         size_type buffer_size = 64;
@@ -36,37 +50,52 @@ namespace persistent_queue {
         void load();
 
         size_type size();
+        size_type saved_size();
+
+        // NOT YET IMPLEMENTED
+        //std::string save_metadata();
+        //std::string load_metadata();
     private:
         Container enqueue_buffer; 
         Container dequeue_buffer;
-        std::fstream& file;
+        std::fstream file;
         std::deque<Chunk> file_chunks;
+        Serializer serializer;
 
-        size_type saved_sz;
         size_type sz;
+        size_type saved_sz;
     };
 
 
-    template <typename T, typename Container>
-    Engine<T, Container>::Engine(std::fstream& file):
-        file{file},
-        sz{0}
-        {}
+    template <typename T, typename Container, typename Serializer>
+    Engine<T, Container, Serializer>::Engine(std::string filename):
+        file{},
+        sz{0},
+        saved_sz{0}
+    {
+        file.open(filename, std::ios::in | std::ios::out | std::ios::app);
+    }
 
-    template <typename T, typename Container>
-    Engine<T, Container>::size_type Engine<T, Container>::size()
+    template <typename T, typename Container, typename Serializer>
+    Engine<T, Container, Serializer>::size_type Engine<T, Container, Serializer>::size()
         { return sz; }
 
-    template <typename T, typename Container> 
-    void Engine<T, Container>::enqueue(const T& elem) {
+    template <typename T, typename Container, typename Serializer>
+    Engine<T, Container, Serializer>::size_type Engine<T, Container, Serializer>::saved_size()
+        { return saved_sz; }
+
+
+    template <typename T, typename Container, typename Serializer> 
+    void Engine<T, Container, Serializer>::enqueue(const T& elem) {
         enqueue_buffer.push_front(elem);
+        ++sz;
 
         if (enqueue_buffer.size() >= buffer_size)
             flush();
     }
 
-    template <typename T, typename Container>
-    std::optional<T> Engine<T, Container>::dequeue() {
+    template <typename T, typename Container, typename Serializer>
+    std::optional<T> Engine<T, Container, Serializer>::dequeue() {
         std::optional<T> value_container;
 
         T value;
@@ -83,52 +112,43 @@ namespace persistent_queue {
         return value_container;
     }
 
-    template <typename T, typename Container> 
-    void Engine<T, Container>::flush() {
+    template <typename T, typename Container, typename Serializer> 
+    void Engine<T, Container, Serializer>::flush() {
         auto it = enqueue_buffer.begin();
         size_type file_position = file.tellg();
         Chunk file_chunk {file_position};
         for (int i = 0; it != enqueue_buffer.end() && i < buffer_size; ++it, ++i) {
             file_chunk.fms.push_back(File_Marker{file_position});
-            file_chunk.oldest_item_fm = file_chunk.fms.end() - 1;
-            file << *it << ',';
+            serializer.serialize(file, *it);
             ++saved_sz;
             file_position = file.tellg();
         }
+        file_chunk.oldest_item_fm = file_chunk.fms.rbegin();
         file_chunks.push_back(file_chunk);
         enqueue_buffer.clear();
     }
 
-    template <typename T, typename Container> 
-    void Engine<T, Container>::load() {
+    template <typename T, typename Container, typename Serializer> 
+    void Engine<T, Container, Serializer>::load() {
         if (file_chunks.size() == 0) {
-            for (int i = 0; i < enqueue_buffer.size(); ++i) {
-                dequeue_buffer.push_front(enqueue_buffer[i]);
-            }
+            for (int i = 0; i < enqueue_buffer.size(); ++i)
+                dequeue_buffer.push_back(enqueue_buffer[i]);
+
             enqueue_buffer.clear();
         }else {
             Chunk first_chunk = file_chunks.front();
             file_chunks.pop_front();
             auto oldest_item_fm = first_chunk.oldest_item_fm;
 
-            while (oldest_item_fm != first_chunk.fms.begin()) {
+            while (oldest_item_fm != first_chunk.fms.rend()) {
                 if (!oldest_item_fm->deleted) {
                     file.seekg(oldest_item_fm->position);
                     T value;
-                    file >> value;
+                    value = serializer.deserialize(file);
                     dequeue_buffer.push_front(value);
                     oldest_item_fm->deleted = true;
-                    --oldest_item_fm;
+                    ++oldest_item_fm;
                 }
-            }
-
-            if (!oldest_item_fm->deleted) {
-                file.seekg(oldest_item_fm->position);
-                T value;
-                file >> value;
-                dequeue_buffer.push_front(value);
-                oldest_item_fm->deleted = true;
-                first_chunk.oldest_item_fm = first_chunk.fms.end();
             }
         }
     }
