@@ -1,9 +1,13 @@
 #include <fstream>
+#include <nlohmann/detail/conversions/to_json.hpp>
 #include <optional>
 #include <vector>
 #include <iostream>
 #include <deque>
 #include <nlohmann/json.hpp>
+#include <filesystem>
+#include <type_traits>
+
 namespace persistent_queue {    
     struct File_Marker {
         unsigned long position;
@@ -38,7 +42,9 @@ namespace persistent_queue {
             typename Serializer = Default_Serializer<T>>
     class Engine {
     public:
-        Engine(std::string filename);
+        Engine(std::filesystem::path filename);
+
+        void open_file(std::filesystem::path filename);
 
         using size_type = unsigned long;
         size_type buffer_size = 64;
@@ -51,13 +57,18 @@ namespace persistent_queue {
 
         size_type size();
         size_type saved_size();
+    
+        static void to_json(nlohmann::json& j, const Engine& engine); 
 
+        static void from_json(nlohmann::json& j, Engine& engine); 
+        
         // NOT YET IMPLEMENTED
-        //std::string save_metadata();
-        //std::string load_metadata();
+        std::filesystem::path save_metadata();
+        void load_metadata(std::filesystem::path path);
     private:
         Container enqueue_buffer; 
         Container dequeue_buffer;
+        std::filesystem::path filename;
         std::fstream file;
         std::deque<Chunk> file_chunks;
         Serializer serializer;
@@ -68,11 +79,18 @@ namespace persistent_queue {
 
 
     template <typename T, typename Container, typename Serializer>
-    Engine<T, Container, Serializer>::Engine(std::string filename):
-        file{},
+    Engine<T, Container, Serializer>::Engine(std::filesystem::path filename):
+        filename{filename},
         sz{0},
         saved_sz{0}
     {
+        open_file(filename);
+    }
+
+    template <typename T, typename Container, typename Serializer>
+    void Engine<T, Container, Serializer>::open_file(std::filesystem::path filename)
+    {
+        file.close();
         file.open(filename, std::ios::in | std::ios::out | std::ios::app);
     }
 
@@ -152,4 +170,33 @@ namespace persistent_queue {
             }
         }
     }
+
+    template <typename T, typename Container, typename Serializer>
+    void Engine<T, Container, Serializer>::to_json(nlohmann::json& j, const Engine& engine) {
+        // flush data to filestream (do not save buffers)
+        engine.flush();
+
+        // user responsible for restoring serializer
+        j["filename"] =  engine.filename.c_str();
+        j["file_chunks"] = nlohmann::json(engine.file_chunks);
+        j["size"] = engine.size();
+        j["saved_size"] = engine.saved_size();
+    };
+
+    template <typename T, typename Container, typename Serializer>
+    void Engine<T, Container, Serializer>::from_json(nlohmann::json& j, Engine& engine) {
+        std::filesystem::path filename {j.at("filename").get<std::string>()};
+
+        engine.filename = filename;
+        engine.open_file(filename);
+        engine.file_chunks = j.at("file_chunks").get<decltype(engine.file_chunks)>(); 
+        engine.sz = j.at("size").get<Engine<T, Container, Serializer>::size_type>();
+        engine.saved_sz = j.at("saved_size").get<Engine<T, Container, Serializer>::size_type>();
+    }
+
+    template <typename T, typename Container, typename Serializer>
+    std::filesystem::path Engine<T, Container, Serializer>::save_metadata() {
+        std::filesystem::path
+    }
+
 };
