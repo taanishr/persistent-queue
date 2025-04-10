@@ -19,4 +19,6 @@ int main() {
         auto elem = engine.dequeue();
         std::cout << *elem << '\n';
     }
+
+    engine.save_metadata();
 }

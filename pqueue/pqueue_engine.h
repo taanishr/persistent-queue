@@ -6,21 +6,39 @@
 #include <deque>
 #include <nlohmann/json.hpp>
 #include <filesystem>
-#include <type_traits>
+
+using json = nlohmann::json;
 
 namespace persistent_queue {    
     struct File_Marker {
         unsigned long position;
         bool deleted;
 
+        File_Marker():
+            position{0},
+            deleted{false}
+        {}
+
         File_Marker(unsigned long position);
+
+        unsigned long get_position() const { return position; }
+        bool is_deleted() const { return deleted; }
     };
 
     struct Chunk {
         unsigned long position;
         std::vector<File_Marker> fms;
         std::vector<File_Marker>::reverse_iterator oldest_item_fm;
+
+        Chunk():
+            position{0}
+        {}
+
         Chunk(unsigned long position);
+   
+        unsigned long get_position() const { return position; }
+        const std::vector<File_Marker>& file_markers() const { return fms; }
+        std::vector<File_Marker>::const_reverse_iterator oldest_item_file_marker() const { return oldest_item_fm; }
     };
 
     template <typename T>
@@ -55,12 +73,12 @@ namespace persistent_queue {
         void flush();
         void load();
 
-        size_type size();
-        size_type saved_size();
-    
-        static void to_json(nlohmann::json& j, const Engine& engine); 
-
-        static void from_json(nlohmann::json& j, Engine& engine); 
+        const Container& input_buffer() const;
+        const Container& output_buffer() const;
+        std::filesystem::path output_file() const;
+        const std::deque<Chunk>& chunks() const;
+        size_type size() const;
+        size_type saved_size() const;
         
         // NOT YET IMPLEMENTED
         std::filesystem::path save_metadata();
@@ -95,13 +113,32 @@ namespace persistent_queue {
     }
 
     template <typename T, typename Container, typename Serializer>
-    Engine<T, Container, Serializer>::size_type Engine<T, Container, Serializer>::size()
+    Engine<T, Container, Serializer>::size_type Engine<T, Container, Serializer>::size() const
         { return sz; }
 
     template <typename T, typename Container, typename Serializer>
-    Engine<T, Container, Serializer>::size_type Engine<T, Container, Serializer>::saved_size()
+    Engine<T, Container, Serializer>::size_type Engine<T, Container, Serializer>::saved_size() const
         { return saved_sz; }
 
+    template <typename T, typename Container, typename Serializer>
+    const Container& Engine<T, Container, Serializer>::input_buffer() const {
+        return enqueue_buffer;
+    }
+
+    template <typename T, typename Container, typename Serializer>
+    const Container& Engine<T, Container, Serializer>::output_buffer() const {
+        return dequeue_buffer;
+    }
+
+    template <typename T, typename Container, typename Serializer>
+    std::filesystem::path Engine<T,Container,Serializer>::output_file() const {
+        return filename;
+    }
+   
+    template <typename T, typename Container, typename Serializer>
+    const std::deque<Chunk>& Engine<T,Container,Serializer>::chunks() const {
+        return file_chunks;
+    }
 
     template <typename T, typename Container, typename Serializer> 
     void Engine<T, Container, Serializer>::enqueue(const T& elem) {
@@ -172,31 +209,50 @@ namespace persistent_queue {
     }
 
     template <typename T, typename Container, typename Serializer>
-    void Engine<T, Container, Serializer>::to_json(nlohmann::json& j, const Engine& engine) {
-        // flush data to filestream (do not save buffers)
-        engine.flush();
+    std::filesystem::path Engine<T, Container, Serializer>::save_metadata() {
+        flush();
 
+        std::filesystem::path metadata_path = std::filesystem::current_path();
+        metadata_path = metadata_path / "metadata.txt";
+        std::fstream metadata_file;
+        metadata_file.open(metadata_path, std::ios_base::out | std::ios_base::trunc);
+        json j {*this};
+        metadata_file << j;
+
+        return metadata_path;
+    }
+
+
+    void to_json(json& j, const File_Marker& file_marker);
+
+    void from_json(const json& j, File_Marker& file_marker); 
+
+    void to_json(json& j, const Chunk& chunk); 
+
+    void from_json(const json& j, Chunk& chunk); 
+
+    template <typename T, typename Container, typename Serializer>
+    void to_json(json& j, const Engine<T,Container,Serializer>& engine) {
         // user responsible for restoring serializer
-        j["filename"] =  engine.filename.c_str();
-        j["file_chunks"] = nlohmann::json(engine.file_chunks);
+        j["filename"] =  engine.output_file().c_str();
+        j["enqueue_buffer"] = json(engine.input_buffer());
+        j["dequeue_buffer"] = json(engine.output_buffer());
+        j["file_chunks"] = json(engine.chunks());
         j["size"] = engine.size();
         j["saved_size"] = engine.saved_size();
     };
 
     template <typename T, typename Container, typename Serializer>
-    void Engine<T, Container, Serializer>::from_json(nlohmann::json& j, Engine& engine) {
+    void from_json(const json& j, Engine<T,Container,Serializer>& engine) {
         std::filesystem::path filename {j.at("filename").get<std::string>()};
 
         engine.filename = filename;
         engine.open_file(filename);
-        engine.file_chunks = j.at("file_chunks").get<decltype(engine.file_chunks)>(); 
+        engine.file_chunks = j.at("file_chunks").get<decltype(engine.file_chunks)>();
+        engine.enqueue_buffer = j.at("enqueue_buffer").get<decltype(engine.enqueue_buffer)>();
+        engine.dequeue_buffer = j.at("dequeue_buffer").get<decltype(engine.dequeue_buffer)>();
         engine.sz = j.at("size").get<Engine<T, Container, Serializer>::size_type>();
         engine.saved_sz = j.at("saved_size").get<Engine<T, Container, Serializer>::size_type>();
-    }
-
-    template <typename T, typename Container, typename Serializer>
-    std::filesystem::path Engine<T, Container, Serializer>::save_metadata() {
-        std::filesystem::path
     }
 
 };
