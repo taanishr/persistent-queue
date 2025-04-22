@@ -1,1 +1,1 @@
-[{"dequeue_buffer":[],"enqueue_buffer":[],"file_chunks":[{"file_markers":[],"oldest_item_file_marker":0,"position":587}],"filename":"storagefile.txt","saved_size":128,"size":138}]
+[{"file_chunks":[{"file_markers":[],"oldest_item_file_marker":0,"position":185}],"filename":"storagefile.txt","input_buffer":[],"output_buffer":[],"saved_size":128,"size":138}]
